@@ -87,6 +87,7 @@ private:
   std::unordered_map<const libcamera::Request *, std::mutex> request_mutexes;
   std::unordered_map<const libcamera::Request *, std::condition_variable> request_condvars;
   std::atomic<bool> running;
+  std::string frame_id;
 
   struct buffer_info_t
   {
@@ -297,6 +298,13 @@ CameraNode::CameraNode(const rclcpp::NodeOptions &options)
     // default to 95
     jpeg_quality = declare_parameter<uint8_t>("jpeg_quality", 95, jpeg_quality_description);
   }
+
+  // frame_id
+  rcl_interfaces::msg::ParameterDescriptor param_frame_id;
+  param_frame_id.description = "frame idr";
+  param_frame_id.read_only = true;
+  frame_id = declare_parameter<std::string>("frame_id", "camera", param_frame_id);
+  RCLCPP_DEBUG_STREAM(get_logger(), "set frame_id to: " << frame_id);
 
   // publisher for raw and compressed image
   pub_image = this->create_publisher<sensor_msgs::msg::Image>("~/image_raw", 1);
@@ -617,7 +625,7 @@ CameraNode::process(libcamera::Request *const request)
       // send image data
       std_msgs::msg::Header hdr;
       hdr.stamp = rclcpp::Time(time_offset + int64_t(metadata.timestamp));
-      hdr.frame_id = "camera";
+      hdr.frame_id = frame_id;
       const libcamera::StreamConfiguration &cfg = stream->configuration();
 
       auto msg_img = std::make_unique<sensor_msgs::msg::Image>();
